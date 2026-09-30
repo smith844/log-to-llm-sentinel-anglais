@@ -370,14 +370,14 @@ async def test_rule(rule_id: int, request: Request):
             "apprise_max_chars": config.apprise_max_chars if config else 1900,
             "debug_mode": config.debug_mode if config else False,
             "discord_webhook_url": config.discord_webhook_url if config else "",
-            "ollama_prompt_lang": config.ollama_prompt_lang if config else "fr",
+            "ollama_prompt_lang": config.ollama_prompt_lang if config else "en",
             "site_lang": config.site_lang if config else "fr",
             "instance_name": config.instance_name if config else "",
         }
 
         cleaned_context = [clean_log_line(l) for l in last_lines[:-1]]
         cleaned_last_line = clean_log_line(last_line)
-        prompt = orchestrator._build_prompt(rule, cleaned_last_line, config_dict.get("system_prompt", ""), context_lines=cleaned_context)
+        prompt = orchestrator._build_prompt(rule, cleaned_last_line, config_dict.get("system_prompt", ""), context_lines=cleaned_context, lang=config_dict.get("ollama_prompt_lang", "en"))
         logger.debug("TestRule", f"Envoi à Ollama (via stream) — modèle={config_dict.get('ollama_model')}")
 
         from app.routers.utils import cancel_on_disconnect

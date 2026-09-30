@@ -461,7 +461,7 @@ class ResolutionService:
             if not config:
                 return {"resolved": False, "confidence": 0, "explanation": "Pas de configuration globale"}
 
-            lang = config.ollama_prompt_lang or "fr"
+            lang = config.ollama_prompt_lang or "en"
             last_analysis = db.query(Analysis).filter(Analysis.rule_id == rule.id).order_by(Analysis.analyzed_at.desc()).first()
             error_details = last_analysis.triggered_line if last_analysis else "Inconnue"
             error_analysis = last_analysis.ollama_response if last_analysis else "Inconnue"
@@ -668,7 +668,7 @@ Retourne UNIQUEMENT l'objet JSON brut, sans formatage markdown ni bloc de code.
             if not recent_logs:
                 return
 
-            lang = config.ollama_prompt_lang or "fr"
+            lang = config.ollama_prompt_lang or "en"
             if lang == "en":
                 prompt = f"""You are an auto-learning assistant for log monitoring.
 A rule named '{rule.name}' just returned to normal.
@@ -906,7 +906,7 @@ Retourne UNIQUEMENT le tableau JSON brut, sans formatage markdown ni bloc de cod
                 if lines:
                     recent_logs = f"\nLogs recents (dernieres 30 lignes):\n" + "\n".join(lines[-30:])
 
-            lang = config.ollama_prompt_lang or "fr"
+            lang = config.ollama_prompt_lang or "en"
             if lang == "en":
                 prompt = f"""You are auditing the resolution patterns of a log monitoring rule.
 Rule name: {rule.name}

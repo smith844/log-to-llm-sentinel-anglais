@@ -141,6 +141,8 @@ class Orchestrator:
                 "ollama_ctx": config.ollama_ctx if config else 4096,
                 "ollama_think": config.ollama_think if config else True,
                 "system_prompt": config.system_prompt if config else "",
+                "ollama_prompt_lang": (config.ollama_prompt_lang or "en") if config else "en",
+                "site_lang": (config.site_lang or "en") if config else "en",
                 "notification_method": config.notification_method if config else "smtp",
                 "apprise_url": config.apprise_url if config else "",
                 "apprise_tags": config.apprise_tags if config else "",
@@ -152,14 +154,14 @@ class Orchestrator:
             }
 
             max_chars = config_dict.get("max_log_chars", 5000)
-            lang = config_dict.get("ollama_prompt_lang", "fr")
+            lang = config_dict.get("ollama_prompt_lang", "en")
 
             if len(lines) == 1:
                 line = clean_log_line(lines[0])
                 # Si la ligne est trop longue, on la tronque
                 if len(line) > max_chars:
                     logger.warning("Orchestrator", f"Ligne trop longue ({len(line)} chars), troncature à {max_chars}")
-                    line = line[:max_chars] + "... [TRONQUÉ]"
+                    line = line[:max_chars] + ("... [TRUNCATED]" if lang == 'en' else "... [TRONQUÉ]")
                 
                 await self._process_match(rule, line, config_dict, db, detection_id, matched_keywords)
             else:
@@ -177,9 +179,10 @@ class Orchestrator:
                     if current_length + len(line_to_add) > max_chars:
                         if lines_added == 0:
                             # Guarantee at least 1 line even if it must be truncated
-                            truncated_line = line[:max_chars - current_length - 20] + "…[tronqué]"
+                            truncated_line = line[:max_chars - current_length - 20] + ("…[truncated]" if lang == 'en' else "…[tronqué]")
                             bundled_text += f"\n{truncated_line}"
-                        bundled_text += f"\n... [Tronqué : limite de {max_chars} caractères atteinte ({total_lines} événements détectés)]"
+                        bundled_text += (f"\n... [Truncated: {max_chars} character limit reached ({total_lines} events detected)]"
+                                         if lang == 'en' else f"\n... [Tronqué : limite de {max_chars} caractères atteinte ({total_lines} événements détectés)]")
                         break
                     bundled_text += line_to_add
                     current_length += len(line_to_add)
@@ -205,7 +208,7 @@ class Orchestrator:
         # Pour simplifier, on passe le contexte vide ou on le récupère si disponible.
 
         # 2. Construire le prompt
-        lang = config.get("ollama_prompt_lang", "fr")
+        lang = config.get("ollama_prompt_lang", "en")
         prompt = self._build_prompt(rule, line, config.get("system_prompt", ""), lang=lang)
 
         # 3. Appeler Ollama (sous verrou pour éviter de surcharger le CPU)
@@ -283,7 +286,7 @@ class Orchestrator:
             import json
             matched_keywords = json.loads(analysis.matched_keywords_json)
             
-        lang = config.get("site_lang", config.get("ollama_prompt_lang", "fr"))
+        lang = config.get("site_lang", config.get("ollama_prompt_lang", "en"))
         logger.debug("Notification", f"Notification lang={lang} (site_lang={config.get('site_lang')}, ollama_prompt_lang={config.get('ollama_prompt_lang')})")
         det_id_label = f" [ID: {detection_id}]" if detection_id else ""
         logger.debug("Notification", f"Envoi notification via '{config.get('notification_method')}' pour règle '{rule.name}'")
@@ -321,7 +324,7 @@ class Orchestrator:
         # Gestion du résumé IA si nécessaire (pour Apprise/Discord/etc.)
         max_chars = config.get("apprise_max_chars", 1900)
         notify_body = body
-        lang = config.get("ollama_prompt_lang", "fr")
+        lang = config.get("ollama_prompt_lang", "en")
 
         if config.get("notification_method") in ("apprise", "discord") and len(body) > max_chars:
             logger.debug("Notification", f"Analyse trop longue ({len(body)} chars), demande de résumé simplifié à Ollama...")
@@ -361,7 +364,7 @@ class Orchestrator:
     # La méthode _clean_log_line a été déplacée dans app.utils.log_utils.clean_log_line
 
     def _build_prompt(self, rule: Rule, line: str, system_prompt: str,
-                      context_lines: list = None, lang: str = 'fr') -> str:
+                      context_lines: list = None, lang: str = 'en') -> str:
         """Construit le prompt pour Ollama — EN or FR selon lang."""
         import textwrap
         context_block = ""
@@ -376,6 +379,7 @@ class Orchestrator:
             SEVERITY: [info|warning|critical]
 
             Then provide a short, explanatory summary of the incident.
+            Write your explanation in English, even if the logs or application context are in another language.
 
             Application context: {rule.application_context}
             {context_block}

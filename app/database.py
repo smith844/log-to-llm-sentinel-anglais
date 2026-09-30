@@ -38,7 +38,7 @@ def init_db():
         "ALTER TABLE meta_analysis_configs ADD COLUMN schedule_day INTEGER DEFAULT 1",
         "ALTER TABLE meta_analysis_results ADD COLUMN context_sent TEXT DEFAULT NULL",
         "ALTER TABLE rules ADD COLUMN last_learning_session_id INTEGER DEFAULT NULL",
-        "ALTER TABLE global_config ADD COLUMN ollama_prompt_lang VARCHAR DEFAULT 'fr'",
+        "ALTER TABLE global_config ADD COLUMN ollama_prompt_lang VARCHAR DEFAULT 'en'",
         "ALTER TABLE rules ADD COLUMN excluded_patterns_json TEXT DEFAULT '[]'",
         "ALTER TABLE global_config ADD COLUMN auto_delete_analyses BOOLEAN DEFAULT 0",
         "ALTER TABLE global_config ADD COLUMN auto_delete_retention_days INTEGER DEFAULT 30",

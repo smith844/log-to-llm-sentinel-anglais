@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - English analysis fork
+
+### Fixed
+- Pass the saved analysis and notification languages to the background worker. Previously, the missing settings forced French log preambles and prompts regardless of the saved selection.
+- Apply the analysis language to rule tests, retries, manual analysis and follow-up questions.
+- Translate log truncation notices and meta-analysis event labels when English is selected, and explicitly request English explanations from the model.
+
+### Changed
+- Default new analysis settings and missing analysis-language values to English. Existing saved language choices and analysis history are preserved; the interface language and analysis language remain separate settings.
+
 ## [1.2.297] - 2026-06-30
 
 ### Fixed

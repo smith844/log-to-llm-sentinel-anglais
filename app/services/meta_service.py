@@ -187,7 +187,7 @@ class MetaAnalysisService:
             ollama = self.orchestrator.ollama if self.orchestrator else OllamaService()
             ollama_url = (global_cfg.ollama_url or "http://ollama:11434") if global_cfg else "http://ollama:11434"
             ollama_model = (global_cfg.ollama_model or "gemma4:e4b") if global_cfg else "gemma4:e4b"
-            lang = (global_cfg.ollama_prompt_lang or 'fr') if global_cfg else 'fr'
+            lang = (global_cfg.ollama_prompt_lang or 'en') if global_cfg else 'en'
 
             is_manual = custom_context is not None
 
@@ -268,10 +268,11 @@ class MetaAnalysisService:
                     if analysis.matched_keywords_json:
                         try: all_matched_keywords.update(json.loads(analysis.matched_keywords_json))
                         except: pass
-                    rule_name = rule.name if rule else "Inconnue"
+                    rule_name = rule.name if rule else ("Unknown" if lang == 'en' else "Inconnue")
                     date_str = analysis.analyzed_at.strftime("%Y-%m-%d %H:%M:%S")
                     short_ia = _last_paragraph(analysis.ollama_response) if analysis.ollama_response else "N/A"
-                    block = f"[{date_str}] [SEVERITY: {analysis.severity.upper()}] [R\u00e8gle: {rule_name}] [ID: {analysis.detection_id}]\nLigne: {analysis.triggered_line[:500]}\nIA unitaire: {short_ia}"
+                    rule_label, line_label, ai_label = ("Rule", "Line", "Individual analysis") if lang == 'en' else ("Règle", "Ligne", "IA unitaire")
+                    block = f"[{date_str}] [SEVERITY: {analysis.severity.upper()}] [{rule_label}: {rule_name}] [ID: {analysis.detection_id}]\n{line_label}: {analysis.triggered_line[:500]}\n{ai_label}: {short_ia}"
                     compressed_data.append(block)
 
                 events_text = "\n\n".join(compressed_data)
@@ -302,6 +303,9 @@ class MetaAnalysisService:
                     f"{'--' * 20}\n{events_text}\n{'--' * 20}\n"
                     f"{meta_instruction}"
                 )
+
+            if lang == 'en':
+                prompt += "\n\nWrite your analysis and recommendations in English, even if the supplied context is in another language."
 
             logger.debug("MetaAnalysisService", f"Envoi prompt méta-analyse (Taille: {len(prompt)} car., Contexte: {config.context_size})")
 
