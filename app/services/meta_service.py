@@ -1,3 +1,4 @@
+from app.utils.language import get_language, language_instruction
 import json
 from datetime import datetime, timedelta
 import asyncio
@@ -187,7 +188,7 @@ class MetaAnalysisService:
             ollama = self.orchestrator.ollama if self.orchestrator else OllamaService()
             ollama_url = (global_cfg.ollama_url or "http://ollama:11434") if global_cfg else "http://ollama:11434"
             ollama_model = (global_cfg.ollama_model or "gemma4:e4b") if global_cfg else "gemma4:e4b"
-            lang = (global_cfg.ollama_prompt_lang or 'en') if global_cfg else 'en'
+            lang = get_language(global_cfg)
 
             is_manual = custom_context is not None
 
@@ -307,6 +308,8 @@ class MetaAnalysisService:
             if lang == 'en':
                 prompt += "\n\nWrite your analysis and recommendations in English, even if the supplied context is in another language."
 
+            prompt += "\n\n" + language_instruction(lang)
+
             logger.debug("MetaAnalysisService", f"Envoi prompt méta-analyse (Taille: {len(prompt)} car., Contexte: {config.context_size})")
 
             if self.orchestrator:
@@ -363,7 +366,7 @@ class MetaAnalysisService:
         Envoie une notification globale pour la méta-analyse.
         """
         notifier = NotificationService()
-        lang = global_cfg.site_lang or 'fr'
+        lang = get_language(global_cfg)
         instance_prefix = f"[{global_cfg.instance_name}] " if global_cfg.instance_name else ""
         
         subject = instance_prefix + nt('meta_subject', lang).format(config_name=config.name)

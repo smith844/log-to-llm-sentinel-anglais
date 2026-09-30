@@ -1,3 +1,4 @@
+from app.utils.language import get_language, language_instruction
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -53,16 +54,17 @@ async def list_conversations(db: Session = Depends(get_db)):
 @router.post("/api/create")
 async def create_conversation(data: dict, db: Session = Depends(get_db)):
     analysis_id = data.get("analysis_id")
-    title = data.get("title", "Nouvelle conversation")
+    lang = get_language(db.query(GlobalConfig).first())
+    title = data.get("title") or ("New conversation" if lang == "en" else "Nouvelle conversation")
     raw_prompt = data.get("raw_context_prompt")
     raw_response = data.get("raw_context_response")
     
     if analysis_id:
         analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
         if analysis:
-            title = f"Analyse #{analysis.detection_id or analysis.id}"
+            title = f"{'Analysis' if lang == 'en' else 'Analyse'} #{analysis.detection_id or analysis.id}"
     elif raw_prompt:
-        title = "Analyse manuelle"
+        title = "Manual analysis" if lang == "en" else "Analyse manuelle"
     
     conv = ChatConversation(title=title, analysis_id=analysis_id)
     db.add(conv)
@@ -70,7 +72,7 @@ async def create_conversation(data: dict, db: Session = Depends(get_db)):
     db.refresh(conv)
     
     if raw_prompt and raw_response:
-        msg = ChatMessage(conversation_id=conv.id, role="assistant", content=f"**Contexte Manuel :**\n{raw_prompt}\n\n**Analyse initiale :**\n{raw_response}")
+        msg = ChatMessage(conversation_id=conv.id, role="assistant", content=f"**{'Manual context' if lang == 'en' else 'Contexte Manuel'}:**\n{raw_prompt}\n\n**{'Initial analysis' if lang == 'en' else 'Analyse initiale'}:**\n{raw_response}")
         db.add(msg)
         db.commit()
     
@@ -136,7 +138,7 @@ def build_chat_prompt(conv_id: int, db: Session) -> tuple[str, int]:
     # 1. Charger la configuration de base (System Prompt & Mode Text)
     cfg = db.query(GlobalConfig).first()
     system_prompt = cfg.chat_system_prompt.strip() if cfg and cfg.chat_system_prompt else ""
-    lang = cfg.chat_lang if cfg and cfg.chat_lang else "fr"
+    lang = get_language(cfg)
     lang_file = f"static/i18n/{lang}.json"
     mode_text = ""
     
@@ -153,7 +155,7 @@ def build_chat_prompt(conv_id: int, db: Session) -> tuple[str, int]:
     for r in active_rules:
         ctx = f" (Context: {r.application_context})" if r.application_context else ""
         rules_lines.append(f"- {r.name}{ctx}")
-    rules_list_str = "\\n".join(rules_lines) if rules_lines else "- Aucune règle configurée"
+    rules_list_str = "\n".join(rules_lines) if rules_lines else ("- No rules configured" if lang == "en" else "- Aucune règle configurée")
     
     if mode_text:
         mode_text = mode_text.replace("{datetime}", current_dt)
@@ -167,7 +169,7 @@ def build_chat_prompt(conv_id: int, db: Session) -> tuple[str, int]:
         
     if conv.compressed_context:
         block_lines.extend([
-            "=== Contexte Compressé ===",
+            "=== Compressed context ===" if lang == "en" else "=== Contexte Compressé ===",
             conv.compressed_context,
             ""
         ])
@@ -176,16 +178,16 @@ def build_chat_prompt(conv_id: int, db: Session) -> tuple[str, int]:
         if analysis:
             rule = db.query(Rule).filter(Rule.id == analysis.rule_id).first()
             block_lines.extend([
-                "Tu es un assistant expert en systèmes Linux, Docker et infrastructure.",
-                "Une analyse de log a été effectuée. L'utilisateur te pose des questions de suivi.",
+                "You are an expert in Linux, Docker and infrastructure." if lang == "en" else "Tu es un assistant expert en systèmes Linux, Docker et infrastructure.",
+                "A log analysis was performed. The user is asking follow-up questions." if lang == "en" else "Une analyse de log a été effectuée. L'utilisateur te pose des questions de suivi.",
                 "",
-                f"=== Règle : {rule.name if rule else 'Inconnue'} ===",
+                f"=== {'Rule' if lang == 'en' else 'Règle'} : {rule.name if rule else ('Unknown' if lang == 'en' else 'Inconnue')} ===",
                 f"Application : {rule.application_context if rule else ''}",
                 "",
-                "=== Ligne de log concernée ===",
+                "=== Triggering log line ===" if lang == "en" else "=== Ligne de log concernée ===",
                 analysis.triggered_line,
                 "",
-                "=== Analyse initiale ===",
+                "=== Initial analysis ===" if lang == "en" else "=== Analyse initiale ===",
                 analysis.ollama_response,
                 ""
             ])
@@ -193,14 +195,15 @@ def build_chat_prompt(conv_id: int, db: Session) -> tuple[str, int]:
     if mode_text:
         block_lines.append(mode_text)
 
-    prompt = "\\n".join(block_lines).strip() + "\\n\\n" if block_lines else ""
+    prompt = "\n".join(block_lines).strip() + "\n\n" if block_lines else ""
 
     # 3. Ajouter l'historique de la conversation
     # On limite à 20 messages récents au lieu de 10 car le contexte est géré
     for m in history[-20:]:
-        role_label = "Utilisateur" if m.role == "user" else "Assistant"
-        prompt += f"{role_label} : {m.content}\\n"
+        role_label = ("User" if lang == "en" else "Utilisateur") if m.role == "user" else "Assistant"
+        prompt += f"{role_label} : {m.content}\n"
     
+    prompt += "\n" + language_instruction(lang) + "\n"
     ollama_ctx = cfg.ollama_ctx if cfg else 4096
     
     return prompt, ollama_ctx
@@ -218,6 +221,7 @@ class CompressRequest(BaseModel):
 
 @router.post("/api/compress/{conv_id}")
 async def start_compression(conv_id: int, req: CompressRequest, db: Session = Depends(get_db)):
+    lang = get_language(db.query(GlobalConfig).first())
     conv = db.query(ChatConversation).filter(ChatConversation.id == conv_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -251,7 +255,7 @@ async def start_compression(conv_id: int, req: CompressRequest, db: Session = De
             first_line = m.content.strip().split('\n')[0][:120]
             dropped_lines.append(f"- {role_label}: {first_line}")
         
-        compressed = "[Tronqué]\n" + "\n".join(dropped_lines)
+        compressed = ("[Truncated]\n" if lang == "en" else "[Tronqué]\n") + "\n".join(dropped_lines)
         
         # Cutoff = timestamp du premier message GARDÉ (les kept restent visibles)
         cutoff_time = kept[0].created_at if kept else datetime.utcnow()
@@ -288,7 +292,7 @@ async def start_compression(conv_id: int, req: CompressRequest, db: Session = De
             text_to_compress += f"=== Analyse initiale ===\n{a.triggered_line}\n{a.ollama_response}\n\n"
             
     for m in messages_to_process:
-        role_label = "Utilisateur" if m.role == "user" else "Assistant"
+        role_label = ("User" if lang == "en" else "Utilisateur") if m.role == "user" else "Assistant"
         text_to_compress += f"{role_label} : {m.content}\n\n"
         
     text_to_compress = text_to_compress.strip()
@@ -313,10 +317,11 @@ async def start_compression(conv_id: int, req: CompressRequest, db: Session = De
                         model = cfg.ollama_model or model
                         ctx_size = cfg.ollama_ctx or ctx_size
 
+                lang = get_language(cfg)
                 if mode == "compact":
-                    res = await run_compaction(txt, _orchestrator.ollama, url, model, num_ctx=ctx_size)
+                    res = await run_compaction(txt, _orchestrator.ollama, url, model, num_ctx=ctx_size, lang=lang)
                 else:
-                    res = await run_summary(txt, _orchestrator.ollama, url, model, num_ctx=ctx_size)
+                    res = await run_summary(txt, _orchestrator.ollama, url, model, num_ctx=ctx_size, lang=lang)
                 
                 with SessionLocal() as s:
                     c = s.query(ChatConversation).filter(ChatConversation.id == cid).first()
@@ -673,6 +678,7 @@ async def auto_title_conversation(conv_id: int, db: Session = Depends(get_db)):
     )
 
     cfg = db.query(GlobalConfig).first()
+    title_prompt += "\n\n" + language_instruction(get_language(cfg))
     ollama_url   = (cfg.ollama_url   or "http://ollama:11434") if cfg else "http://ollama:11434"
     ollama_model = (cfg.ollama_model or "gemma4:e4b")         if cfg else "gemma4:e4b"
 
@@ -733,19 +739,20 @@ async def delete_last_messages(conv_id: int, count: int = 2, db: Session = Depen
 @router.get("/api/settings")
 async def get_chat_settings(db: Session = Depends(get_db)):
     cfg = db.query(GlobalConfig).first()
+    lang = get_language(cfg)
     
     active_rules = db.query(Rule).filter(Rule.enabled == True).all()
     rules_lines = []
     for r in active_rules:
         ctx = f" (Context: {r.application_context})" if r.application_context else ""
         rules_lines.append(f"- {r.name}{ctx}")
-    rules_list_str = "\n".join(rules_lines) if rules_lines else "- Aucune règle configurée"
+    rules_list_str = "\n".join(rules_lines) if rules_lines else ("- No rules configured" if lang == "en" else "- Aucune règle configurée")
     
     if not cfg:
-        return {"chat_lang": "", "chat_system_prompt": "", "rules_list_str": rules_list_str}
+        return {"chat_lang": lang, "chat_system_prompt": "", "rules_list_str": rules_list_str}
         
     return {
-        "chat_lang": cfg.chat_lang or "",
+        "chat_lang": lang,
         "chat_system_prompt": cfg.chat_system_prompt or "",
         "rules_list_str": rules_list_str
     }
@@ -757,8 +764,7 @@ async def save_chat_settings(data: dict, db: Session = Depends(get_db)):
         cfg = GlobalConfig()
         db.add(cfg)
     
-    if "chat_lang" in data:
-        cfg.chat_lang = data["chat_lang"]
+    # Language is controlled by the header; stale chat forms cannot override it.
     if "chat_system_prompt" in data:
         cfg.chat_system_prompt = data["chat_system_prompt"]
         

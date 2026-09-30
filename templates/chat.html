@@ -154,11 +154,11 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label data-i18n="chat.lang_select">Langue des requêtes (Chat)</label>
-                    <select id="chat-lang-select" class="form-control" onchange="markChatSettingsDirty(); updateContextPreview()">
-                        <option value="" data-i18n="chat.lang_site_default">Par défaut (Langue du site)</option>
+                    <select id="chat-lang-select" class="form-control" disabled>
                         <option value="fr">Français</option>
                         <option value="en">English</option>
                     </select>
+                    <div class="form-hint" data-i18n="common.shared_language_hint">Use the header language selector for the interface and all new AI responses and notifications.</div>
                 </div>
 
                 <div style="margin-bottom: 1rem; margin-top: 1rem;">
@@ -880,7 +880,9 @@ function toggleChatSidebar() {
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-    window.i18n?.onLanguageChange(() => {
+    window.i18n?.onLanguageChange((lang) => {
+        document.getElementById('chat-lang-select').value = lang;
+        updateContextPreview();
         loadConversations();
         if (activeConvId) loadHistory(activeConvId);
         // data-i18n attributes are handled by i18n.js automatically
@@ -1880,12 +1882,7 @@ async function autoTitleConversation(convId) {
 let _chatSettingsTimeout;
 
 async function updateContextPreview() {
-    let lang = document.getElementById('chat-lang-select').value;
-    if (!lang && window.i18n) {
-        lang = window.i18n.getCurrentLang();
-    } else if (!lang) {
-        lang = 'fr';
-    }
+    const lang = window.i18n?.getCurrentLang() || 'en';
     
     let text = '';
     try {
@@ -1915,7 +1912,7 @@ async function openChatSettings() {
     
     try {
         const res = await apiFetch('/chat/api/settings');
-        document.getElementById('chat-lang-select').value = res.chat_lang || '';
+        document.getElementById('chat-lang-select').value = res.chat_lang || window.i18n?.getCurrentLang() || 'en';
         _previewRulesStr = res.rules_list_str || '- [Aucune règle configurée]';
         
         const autoMode = localStorage.getItem('chat_auto_compression_mode') || '';
@@ -1974,7 +1971,7 @@ async function saveChatSettings(closeModal = false) {
     try {
         await apiFetch('/chat/api/settings', {
             method: 'POST',
-            body: { chat_lang: lang, chat_system_prompt: prompt }
+            body: { chat_system_prompt: prompt }
         });
         
         input.style.borderColor = 'var(--success)';
@@ -1993,7 +1990,7 @@ async function saveChatSettings(closeModal = false) {
 }
 
 function resetChatPrompt(autoSave = true) {
-    const lang = document.getElementById('chat-lang-select').value || (window.i18n ? window.i18n.currentLang : 'fr');
+    const lang = window.i18n?.getCurrentLang() || 'en';
     let defaultPrompt = "Tu es un expert DevOps francophone. Réponds en français de manière directe et concise.";
     if (lang === 'en') {
         defaultPrompt = "You are an English-speaking DevOps expert. Answer in English directly and concisely.";
@@ -2006,7 +2003,7 @@ function resetChatPrompt(autoSave = true) {
 
 async function translateChatPrompt() {
     const prompt = document.getElementById('chat-system-prompt-input').value;
-    let lang = document.getElementById('chat-lang-select').value || (window.i18n ? window.i18n.currentLang : 'fr');
+    let lang = window.i18n?.getCurrentLang() || 'en';
     if (!prompt) return;
     
     const targetLang = lang === 'en' ? 'en' : 'fr';

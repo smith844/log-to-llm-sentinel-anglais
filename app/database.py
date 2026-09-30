@@ -49,7 +49,7 @@ def init_db():
         "ALTER TABLE rules ADD COLUMN inactivity_period_hours INTEGER DEFAULT 1",
         "ALTER TABLE rules ADD COLUMN inactivity_notify BOOLEAN DEFAULT 1",
         "ALTER TABLE rules ADD COLUMN inactivity_notified BOOLEAN DEFAULT 0",
-        "ALTER TABLE global_config ADD COLUMN site_lang VARCHAR DEFAULT 'fr'",
+        "ALTER TABLE global_config ADD COLUMN site_lang VARCHAR DEFAULT 'en'",
         "ALTER TABLE chat_conversations ADD COLUMN compression_mode VARCHAR DEFAULT NULL",
         "ALTER TABLE chat_conversations ADD COLUMN compressed_context TEXT DEFAULT NULL",
         "ALTER TABLE chat_conversations ADD COLUMN compressed_at DATETIME DEFAULT NULL",

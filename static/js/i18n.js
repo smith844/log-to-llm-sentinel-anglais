@@ -18,7 +18,7 @@
     'use strict';
 
     let _translations = {};
-    let _currentLang = 'fr';
+    let _currentLang = 'en';
     let _availableLangs = [];
     // Callbacks à appeler après chaque changement de langue (pour re-rendre le contenu dynamique)
     const _reRenderCallbacks = [];
@@ -86,33 +86,40 @@
     /**
      * Charge un fichier de langue et l'applique.
      */
-    async function loadLanguage(lang) {
+    async function loadLanguage(lang, persist = false) {
         try {
             const res = await fetch(`/static/i18n/${lang}.json?v=${Date.now()}`);
             if (!res.ok) throw new Error(`Fichier de langue introuvable: ${lang}`);
-            _translations = await res.json();
+            const translations = await res.json();
+            if (persist) {
+                const saved = await fetch('/api/config/site-lang', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lang })
+                });
+                if (!saved.ok) throw new Error('Language could not be saved');
+            }
+            _translations = translations;
             _currentLang = lang;
             localStorage.setItem('sentinel_lang', lang);
-            // Sync site language to backend for notifications
-            fetch('/api/config/site-lang', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lang: lang })
-            }).catch(e => console.warn('[i18n] Failed to sync site language:', e));
             applyTranslations();
             // Déclencher les callbacks de re-rendu (ex: re-render les listes dynamiques)
             _reRenderCallbacks.forEach(cb => { try { cb(lang); } catch (e) { console.warn('i18n reRender callback error:', e); } });
             updateLangSwitcherUI();
         } catch (e) {
             console.error('[i18n] Erreur chargement langue:', e);
+            if (persist) alert(t('common.language_sync_error'));
         }
     }
 
     /**
      * Retourne la langue active.
      */
-    function detectLanguage() {
-        return localStorage.getItem('sentinel_lang') || 'fr';
+    async function detectLanguage() {
+        // Opening a page must never overwrite the shared server setting.
+        const res = await fetch('/api/config/site-lang');
+        if (!res.ok) throw new Error('Language could not be loaded');
+        return (await res.json()).site_lang || 'en';
     }
 
     /**
@@ -197,11 +204,18 @@
     /**
      * Change la langue et re-applique toutes les traductions + re-rendu dynamique.
      */
-    async function switchLanguage(lang) {
+    let languageChange = Promise.resolve();
+
+    function switchLanguage(lang) {
+        languageChange = languageChange.then(() => changeLanguage(lang));
+        return languageChange;
+    }
+
+    async function changeLanguage(lang) {
         if (lang === _currentLang) return;
         // Fermer le dropdown
         document.getElementById('lang-dropdown')?.classList.remove('open');
-        await loadLanguage(lang);
+        await loadLanguage(lang, true);
     }
 
     /**
@@ -226,8 +240,12 @@
 
     // ── Initialisation ──
     document.addEventListener('DOMContentLoaded', async () => {
-        const lang = detectLanguage();
         await initLangSwitcher();
-        await loadLanguage(lang);
+        try {
+            await loadLanguage(await detectLanguage());
+        } catch (e) {
+            console.warn('[i18n] Could not read shared language:', e);
+            await loadLanguage(localStorage.getItem('sentinel_lang') || 'en');
+        }
     });
 })();

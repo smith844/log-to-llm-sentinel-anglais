@@ -479,6 +479,8 @@
     "log_rotation_limit_hint": "Sets the maximum size for Syslog and Webhook log files before rotation."
   },
   "common": {
+    "shared_language_hint": "Use the header language selector for the interface and all new AI responses and notifications. Saved responses and custom text keep their original language.",
+    "language_sync_error": "Could not save the language. Please try again.",
     "retry": "Retry",
     "notify": "Send notification",
     "deepen": "Deepen with AI",
