@@ -38,7 +38,7 @@ class AnalysisLanguageTests(unittest.IsolatedAsyncioTestCase):
     async def flush(self, lines, lang='en', max_chars=5000, create_config=True):
         if create_config:
             with self.sessions() as db:
-                db.add(GlobalConfig(ollama_prompt_lang=lang, site_lang='en',
+                db.add(GlobalConfig(ollama_prompt_lang=('fr' if lang == 'en' else 'en'), site_lang=lang,
                                     max_log_chars=max_chars))
                 db.commit()
         self.orchestrator._buffers[self.rule_id] = {

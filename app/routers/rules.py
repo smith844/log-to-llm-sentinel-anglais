@@ -1,3 +1,4 @@
+from app.utils.language import get_language
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Optional
@@ -370,14 +371,14 @@ async def test_rule(rule_id: int, request: Request):
             "apprise_max_chars": config.apprise_max_chars if config else 1900,
             "debug_mode": config.debug_mode if config else False,
             "discord_webhook_url": config.discord_webhook_url if config else "",
-            "ollama_prompt_lang": config.ollama_prompt_lang if config else "en",
-            "site_lang": config.site_lang if config else "fr",
+            "ollama_prompt_lang": get_language(config),
+            "site_lang": get_language(config),
             "instance_name": config.instance_name if config else "",
         }
 
         cleaned_context = [clean_log_line(l) for l in last_lines[:-1]]
         cleaned_last_line = clean_log_line(last_line)
-        prompt = orchestrator._build_prompt(rule, cleaned_last_line, config_dict.get("system_prompt", ""), context_lines=cleaned_context, lang=config_dict.get("ollama_prompt_lang", "en"))
+        prompt = orchestrator._build_prompt(rule, cleaned_last_line, config_dict.get("system_prompt", ""), context_lines=cleaned_context, lang=get_language(config_dict))
         logger.debug("TestRule", f"Envoi à Ollama (via stream) — modèle={config_dict.get('ollama_model')}")
 
         from app.routers.utils import cancel_on_disconnect
@@ -439,7 +440,7 @@ async def test_rule(rule_id: int, request: Request):
             notifier = NotificationService()
             subject = f"[Sentinel TEST] Alerte {severity.upper()} : {rule.name}"
             
-            lang = config_dict.get("site_lang", "fr")
+            lang = get_language(config_dict)
             # Si Apprise ou Discord, on prépare une version Markdown plus lisible
             if config_dict.get("notification_method") in ("apprise", "discord"):
                 body = f"""### 🧪 Test Log to LLM Sentinel : {rule.name}

@@ -179,31 +179,7 @@
                 <input type="number" id="max-log-chars" value="5000" min="500" max="50000">
                 <div class="form-hint" data-i18n="config.max_log_chars_hint">Évite de saturer le serveur avec des logs massifs.</div>
             </div>
-            <div class="form-group">
-                <label for="ollama-prompt-lang">🌐 <span data-i18n="config.ollama_prompt_lang_label">Langue des analyses Ollama</span></label>
-                <select id="ollama-prompt-lang" style="display: none;">
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                </select>
-                <div class="lang-switcher-wrapper" style="width: 100%; position: relative;" id="config-lang-wrapper">
-                    <button type="button" class="lang-btn" id="config-lang-btn" style="width: 100%; justify-content: flex-start; padding: 0.5rem 0.8rem; background: var(--bg-card); border-color: var(--border); font-size: 0.85rem; height: 38px;">
-                        <span id="config-lang-flag"></span>
-                        <span id="config-lang-name" style="margin-left: 0.5rem; flex: 1; text-align: left;"></span>
-                        <svg width="10" height="10" viewBox="0 0 10 10" style="margin-left: auto; color: var(--text-secondary);"><path fill="currentColor" d="M5 7L1 3h8z"/></svg>
-                    </button>
-                    <div class="lang-dropdown" id="config-lang-dropdown" style="width: 100%; top: calc(100% + 4px);">
-                        <button type="button" class="lang-option" data-lang="fr" style="padding: 0.5rem 0.8rem;">
-                            <span class="cfg-flag" data-emoji="🇫🇷"></span>
-                            <span>Français</span>
-                        </button>
-                        <button type="button" class="lang-option" data-lang="en" style="padding: 0.5rem 0.8rem;">
-                            <span class="cfg-flag" data-emoji="🇬🇧"></span>
-                            <span>English</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="form-hint" style="margin-top: 0.5rem;" data-i18n="config.ollama_prompt_lang_hint">Langue utilisée dans les prompts d'analyse de logs et de méta-analyse. Les prompts d'auto-apprentissage restent en anglais (meilleure fiabilité).</div>
-            </div>
+            <div class="form-hint" data-i18n="common.shared_language_hint">Use the header language selector for the interface and all new AI responses and notifications.</div>
             <div class="form-actions" style="margin-top: 0.5rem;">
                 <button type="button" id="test-ollama-btn" class="btn btn-secondary" data-i18n="config.test_ollama">Tester Ollama</button>
             </div>

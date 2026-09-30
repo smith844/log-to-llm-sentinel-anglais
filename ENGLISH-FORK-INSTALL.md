@@ -6,7 +6,7 @@ This package patches the fork at https://github.com/smith844/log-to-llm-sentinel
 
 The automatic analysis worker omitted the stored `ollama_prompt_lang` and `site_lang` settings, which caused French preambles and prompts even when English had been saved. Those settings now reach the worker. Rule tests, retries, manual analysis, follow-up questions and meta-analysis also use the saved analysis language. English is the default for new analysis settings, and English prompts explicitly request English explanations.
 
-French support remains available. The interface language selector and the Ollama analysis language are separate settings. For an existing installation, select **English** in **Settings → Ollama analysis language**, then save. Selecting English only in the page header does not change the stored analysis language.
+French support remains available. With the unified selector update, choose **English** or **Français** in the page header to control the interface and new generated content together. See `UNIFIED-LANGUAGE-INSTALL.md` for the current update instructions.
 
 Existing saved analyses retain their original text. Generate a new analysis to verify the corrected preamble. Retrying an old analysis updates its AI response but retains its original stored log preamble. No database migration rewrites existing history or changes your saved language choice.
 
@@ -22,7 +22,7 @@ Existing saved analyses retain their original text. Generate a new analysis to v
    ```
 
 4. Edit the existing Unraid container template. Set **Repository** to `sentinel-anglais:english-analysis-1`, retain your existing mappings, and click Apply. If Unraid offers to pull the local image from a registry, use the image already built on this host rather than substituting the upstream image. Do not run the supplied docker-compose stack alongside the existing container; it would compete for ports and may use a different data folder.
-5. Open Sentinel, set **Ollama analysis language** to **English** in Settings, and save. Check any custom system prompt for instructions explicitly requesting French and adjust them if necessary.
+5. Open Sentinel and select **English** in the page header. The shared language instruction also applies when custom prompts or prior responses use French.
 6. Trigger a new matching event or use the rule-test action. For two buffered events, the log block should begin:
 
    > These 2 matching events appeared in the last 60 seconds. Here are the most recent:

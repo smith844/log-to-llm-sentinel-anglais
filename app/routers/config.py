@@ -1,3 +1,4 @@
+from app.utils.language import get_language, set_language, SUPPORTED_LANGUAGES
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
@@ -125,8 +126,8 @@ def get_config():
             "max_log_chars": config.max_log_chars,
             "monitor_log_lines": config.monitor_log_lines,
             "debug_mode": config.debug_mode,
-            "ollama_prompt_lang": config.ollama_prompt_lang or 'en',
-            "site_lang": config.site_lang or 'fr',
+            "ollama_prompt_lang": get_language(config),
+            "site_lang": get_language(config),
             "instance_name": config.instance_name or '',
             "discord_webhook_url": config.discord_webhook_url or '',
             "auto_delete_analyses": config.auto_delete_analyses,
@@ -192,10 +193,10 @@ async def update_config(config_data: ConfigUpdate):
             config.monitor_log_lines = config_data.monitor_log_lines
         if config_data.debug_mode is not None:
             config.debug_mode = config_data.debug_mode
-        if config_data.ollama_prompt_lang is not None:
-            config.ollama_prompt_lang = config_data.ollama_prompt_lang
         if config_data.site_lang is not None:
-            config.site_lang = config_data.site_lang
+            if config_data.site_lang not in SUPPORTED_LANGUAGES:
+                raise HTTPException(status_code=422, detail="Unsupported language")
+            set_language(config, config_data.site_lang)
         if config_data.instance_name is not None:
             config.instance_name = config_data.instance_name
         if config_data.discord_webhook_url is not None:
@@ -225,17 +226,28 @@ async def update_config(config_data: ConfigUpdate):
         db.close()
 
 
+@router.get("/site-lang")
+def get_site_lang():
+    db = SessionLocal()
+    try:
+        return {"site_lang": get_language(db.query(GlobalConfig).first())}
+    finally:
+        db.close()
+
+
 @router.put("/site-lang")
 def update_site_lang(data: dict):
-    """Met à jour la langue du site (utilisée pour les notifications)."""
-    lang = data.get("lang", "fr")
+    """Save the shared language for UI, analysis, chat and notifications."""
+    lang = data.get("lang")
+    if not isinstance(lang, str) or lang not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=422, detail="Unsupported language")
     db = SessionLocal()
     try:
         config = db.query(GlobalConfig).first()
         if not config:
             config = GlobalConfig()
             db.add(config)
-        config.site_lang = lang
+        set_language(config, lang)
         db.commit()
         return {"ok": True, "site_lang": lang}
     finally:
@@ -260,8 +272,8 @@ def _get_config_dict(config: Optional[GlobalConfig]) -> dict:
         "max_log_chars": config.max_log_chars if config else 5000,
         "monitor_log_lines": config.monitor_log_lines if config else 60,
         "debug_mode": config.debug_mode if config else False,
-        "ollama_prompt_lang": (config.ollama_prompt_lang or 'en') if config else 'en',
-        "site_lang": (config.site_lang or 'fr') if config else 'fr',
+        "ollama_prompt_lang": get_language(config),
+        "site_lang": get_language(config),
         "instance_name": (config.instance_name or '') if config else '',
         "discord_webhook_url": (config.discord_webhook_url or '') if config else '',
         "auto_delete_analyses": config.auto_delete_analyses if config else False,
@@ -368,7 +380,7 @@ def test_smtp():
 
         # Envoie un email de test vers smtp_user (comportement existant)
         notifier = NotificationService()
-        lang = cfg.get("site_lang", "fr")
+        lang = get_language(cfg)
         subject = "[Log to LLM Sentinel] Test SMTP"
         body = "<p>This is a test email sent by Log-to-LLM-Sentinel.</p>" if lang == "en" else "<p>Ceci est un email de test envoyé par Log-to-LLM-Sentinel.</p>"
         ok = notifier._send_smtp(subject, body, cfg, to_email=cfg.get("smtp_recipient") or cfg.get("smtp_user") or None)
@@ -398,7 +410,7 @@ def test_apprise():
 
         from app.services.notification_service import NotificationService
         notifier = NotificationService()
-        lang = cfg.get("site_lang", "fr")
+        lang = get_language(cfg)
         subject = "Test Apprise Log to LLM Sentinel"
         body = "This is a Log to LLM Sentinel configuration test" if lang == "en" else "Ceci est un test de configuration Log to LLM Sentinel"
         
@@ -425,7 +437,7 @@ def test_discord():
 
         from app.services.notification_service import NotificationService
         notifier = NotificationService()
-        lang = cfg.get("site_lang", "fr")
+        lang = get_language(cfg)
         subject = "Test Discord Log to LLM Sentinel"
         body = "This is a Log to LLM Sentinel configuration test" if lang == "en" else "Ceci est un test de configuration Log to LLM Sentinel"
         

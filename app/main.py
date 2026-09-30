@@ -1,3 +1,4 @@
+from app.utils.language import get_language
 import asyncio
 from contextlib import asynccontextmanager
 import logging
@@ -200,7 +201,7 @@ async def lifespan(app: FastAPI):
                                 if config:
                                     notifier = NotificationService()
                                     from app.utils.notification_i18n import nt
-                                    lang = config.site_lang or 'fr'
+                                    lang = get_language(config)
                                     instance_prefix = f"[{config.instance_name}] " if config.instance_name else ""
                                     subject = instance_prefix + nt('inactivity_subject', lang).format(rule_name=rule.name)
                                     body = nt('inactivity_body', lang).format(rule_name=rule.name, hours=rule.inactivity_period_hours, last_received=rule.last_line_received_at.strftime('%Y-%m-%d %H:%M:%S'))

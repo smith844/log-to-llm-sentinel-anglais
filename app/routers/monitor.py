@@ -1,3 +1,4 @@
+from app.utils.language import get_language, language_instruction
 from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Optional, Any
 import json
@@ -339,7 +340,7 @@ async def retry_analysis(analysis_id: int):
             
         config = _get_config_dict(config_obj)
         cleaned_line = clean_log_line(analysis.triggered_line)
-        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=config.get("ollama_prompt_lang", "en"))
+        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=get_language(config))
 
         # Capturer les IDs nécessaires pour la tâche en arrière-plan
         analysis_id_captured = analysis.id
@@ -437,11 +438,12 @@ async def analyze_line(data: dict):
             "ollama_ctx":   cfg.ollama_ctx   if cfg else 4096,
             "ollama_think": cfg.ollama_think if cfg else True,
             "system_prompt": cfg.system_prompt if cfg else "",
-            "ollama_prompt_lang": (cfg.ollama_prompt_lang or "en") if cfg else "en"
+            "site_lang": get_language(cfg),
+            "ollama_prompt_lang": get_language(cfg)
         }
         rule_id_cap = rule.id
         cleaned_line = clean_log_line(line)
-        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=config.get("ollama_prompt_lang", "en"))
+        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=get_language(config))
     finally:
         db.close()
 
@@ -513,7 +515,7 @@ async def chat_analysis(data: dict, request: Request):
     try:
         prompt = ""
         cfg = db.query(GlobalConfig).first()
-        lang = (cfg.ollama_prompt_lang or "en") if cfg else "en"
+        lang = get_language(cfg)
         if analysis_id and str(analysis_id).isdigit():
             analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
             if not analysis:
@@ -523,7 +525,7 @@ async def chat_analysis(data: dict, request: Request):
             
             # Reconstruire le prompt original (ou le stocker en BDD ?)
             # Ici on va construire un prompt de chat
-            base_prompt = _orchestrator._build_prompt(rule, analysis.triggered_line, cfg.system_prompt if cfg else "", lang=(cfg.ollama_prompt_lang or "en") if cfg else "en")
+            base_prompt = _orchestrator._build_prompt(rule, analysis.triggered_line, cfg.system_prompt if cfg else "", lang=get_language(cfg))
             previous_label = "Your previous response" if lang == "en" else "Ta réponse précédente"
             question_label = "User question" if lang == "en" else "Question de l'utilisateur"
             prompt = f"{base_prompt}\n\n{previous_label}:\n{analysis.ollama_response}\n\n{question_label}: {question}"
@@ -534,6 +536,7 @@ async def chat_analysis(data: dict, request: Request):
             else:
                 prompt = f"Contexte de l'analyse :\n{context_prompt}\n\nRéponse précédente :\n{context_response}\n\nQuestion de l'utilisateur : {question}"
 
+        prompt += "\n\n" + language_instruction(lang)
         cfg = db.query(GlobalConfig).first()
         if not cfg:
             raise HTTPException(status_code=500, detail="config_not_found")

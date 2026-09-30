@@ -7,68 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModelPulling();
     setupNotificationMethodToggle();
     setupMaintenance();
-    setupLangSwitcher();
     setupBackupAndRestore();
 });
-
-function setupLangSwitcher() {
-    const btn = document.getElementById('config-lang-btn');
-    const dropdown = document.getElementById('config-lang-dropdown');
-    const hiddenSelect = document.getElementById('ollama-prompt-lang');
-    if (!btn || !dropdown || !hiddenSelect) return;
-
-    function updateUI(lang) {
-        const opt = dropdown.querySelector(`[data-lang="${lang}"]`);
-        if (!opt) return;
-        
-        // Use i18n SVG fallback if available
-        const emoji = opt.querySelector('.cfg-flag').dataset.emoji;
-        const flagHtml = (window.i18n && window.i18n.getFlagHTML) ? window.i18n.getFlagHTML(emoji) : emoji;
-        
-        document.getElementById('config-lang-flag').innerHTML = flagHtml;
-        document.getElementById('config-lang-name').textContent = opt.querySelector('span:not(.cfg-flag)').textContent;
-        
-        dropdown.querySelectorAll('.lang-option').forEach(o => o.classList.toggle('active', o.dataset.lang === lang));
-        hiddenSelect.value = lang;
-    }
-
-    // Initialize UI on load
-    const initialLang = hiddenSelect.value || 'en';
-    updateUI(initialLang);
-
-    // Initialise flags in dropdown using i18n helper
-    dropdown.querySelectorAll('.cfg-flag').forEach(el => {
-        const emoji = el.dataset.emoji;
-        el.innerHTML = (window.i18n && window.i18n.getFlagHTML) ? window.i18n.getFlagHTML(emoji) : emoji;
-    });
-
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('open');
-    });
-
-    dropdown.querySelectorAll('.lang-option').forEach(opt => {
-        opt.addEventListener('click', (e) => {
-            e.stopPropagation();
-            updateUI(opt.dataset.lang);
-            hiddenSelect.dispatchEvent(new Event('change')); // Trigger auto-save only on user click
-            dropdown.classList.remove('open');
-        });
-    });
-
-    document.addEventListener('click', () => {
-        dropdown.classList.remove('open');
-    });
-
-    // Écouter si la valeur du select caché est modifiée par le chargement de la config
-    let originalLoad = hiddenSelect.value;
-    setInterval(() => {
-        if(hiddenSelect.value !== originalLoad) {
-            originalLoad = hiddenSelect.value;
-            updateUI(hiddenSelect.value);
-        }
-    }, 500); // quick hack for when loadConfig dynamically updates it since value change via JS doesn't fire "change" event if done via .value =
-}
 
 function setupNotificationMethodToggle() {
     const select = document.getElementById('notification-method');
@@ -697,7 +637,6 @@ async function saveConfig(messageEl, isAutoSave = false) {
         ollama_temp: parseFloat(document.getElementById('ollama-temp').value) || 0.1,
         ollama_ctx: parseInt(document.getElementById('ollama-ctx').value) || 4096,
         debug_mode: document.getElementById('debug-mode') ? document.getElementById('debug-mode').checked : false,
-        ollama_prompt_lang: (document.getElementById('ollama-prompt-lang') || {}).value || 'en',
         instance_name: document.getElementById('instance-name') ? document.getElementById('instance-name').value : '',
         auto_delete_analyses: document.getElementById('auto-delete-analyses') ? document.getElementById('auto-delete-analyses').checked : false,
         syslog_enabled: document.getElementById('syslog-enabled') ? document.getElementById('syslog-enabled').checked : false,

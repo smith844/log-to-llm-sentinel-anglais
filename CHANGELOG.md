@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - English analysis fork
+## [Unreleased] - Unified language selector
+
+### Changed
+- The header language selector now controls the interface, automatic/manual/retried analyses, follow-up chat, chat summaries and titles, meta-analysis, resolution explanations and notifications.
+- Remove the independent analysis language control; show chat language as a read-only reflection of the header choice. Old language fields no longer override the shared setting.
+- Load the saved language on page navigation. Await successful saving before changing the interface; report failures and serialize rapid switches.
+- Preserve existing analyses, chat history, custom prompts, log text and match patterns. New installations default to English; existing header choices are respected.
+
+### Validation
+- 16 Python regression tests and 3 JavaScript selector tests pass. Ollama is mocked; deployment and model output still require verification on the host.
+
+## English analysis fork (previous fix)
 
 ### Fixed
 - Pass the saved analysis and notification languages to the background worker. Previously, the missing settings forced French log preambles and prompts regardless of the saved selection.

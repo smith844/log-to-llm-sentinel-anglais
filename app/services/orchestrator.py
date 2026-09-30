@@ -1,3 +1,4 @@
+from app.utils.language import get_language, language_instruction
 import asyncio
 import uuid
 import json
@@ -141,8 +142,8 @@ class Orchestrator:
                 "ollama_ctx": config.ollama_ctx if config else 4096,
                 "ollama_think": config.ollama_think if config else True,
                 "system_prompt": config.system_prompt if config else "",
-                "ollama_prompt_lang": (config.ollama_prompt_lang or "en") if config else "en",
-                "site_lang": (config.site_lang or "en") if config else "en",
+                "ollama_prompt_lang": get_language(config),
+                "site_lang": get_language(config),
                 "notification_method": config.notification_method if config else "smtp",
                 "apprise_url": config.apprise_url if config else "",
                 "apprise_tags": config.apprise_tags if config else "",
@@ -154,7 +155,7 @@ class Orchestrator:
             }
 
             max_chars = config_dict.get("max_log_chars", 5000)
-            lang = config_dict.get("ollama_prompt_lang", "en")
+            lang = get_language(config_dict)
 
             if len(lines) == 1:
                 line = clean_log_line(lines[0])
@@ -208,7 +209,7 @@ class Orchestrator:
         # Pour simplifier, on passe le contexte vide ou on le récupère si disponible.
 
         # 2. Construire le prompt
-        lang = config.get("ollama_prompt_lang", "en")
+        lang = get_language(config)
         prompt = self._build_prompt(rule, line, config.get("system_prompt", ""), lang=lang)
 
         # 3. Appeler Ollama (sous verrou pour éviter de surcharger le CPU)
@@ -286,7 +287,7 @@ class Orchestrator:
             import json
             matched_keywords = json.loads(analysis.matched_keywords_json)
             
-        lang = config.get("site_lang", config.get("ollama_prompt_lang", "en"))
+        lang = get_language(config)
         logger.debug("Notification", f"Notification lang={lang} (site_lang={config.get('site_lang')}, ollama_prompt_lang={config.get('ollama_prompt_lang')})")
         det_id_label = f" [ID: {detection_id}]" if detection_id else ""
         logger.debug("Notification", f"Envoi notification via '{config.get('notification_method')}' pour règle '{rule.name}'")
@@ -324,7 +325,7 @@ class Orchestrator:
         # Gestion du résumé IA si nécessaire (pour Apprise/Discord/etc.)
         max_chars = config.get("apprise_max_chars", 1900)
         notify_body = body
-        lang = config.get("ollama_prompt_lang", "en")
+        lang = get_language(config)
 
         if config.get("notification_method") in ("apprise", "discord") and len(body) > max_chars:
             logger.debug("Notification", f"Analyse trop longue ({len(body)} chars), demande de résumé simplifié à Ollama...")
@@ -398,6 +399,7 @@ class Orchestrator:
             Ligne déclenchante: {line}
             """).strip()
 
+        base_prompt += "\n\n" + language_instruction(lang)
         if system_prompt:
             return f"{system_prompt.strip()}\n\n{base_prompt}"
         return base_prompt

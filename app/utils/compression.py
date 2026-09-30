@@ -1,3 +1,4 @@
+from app.utils.language import language_instruction
 import re
 import asyncio
 from app.logger import debug as log_debug, add_ollama_log
@@ -107,13 +108,14 @@ def _fit_text_to_context(text: str, instructions: str, num_ctx: int,
 
 
 async def run_compaction(text: str, ollama_service, url: str, model: str,
-                         num_ctx: int = 4096) -> str:
+                         num_ctx: int = 4096, lang: str = "en") -> str:
     """
     AI-powered compaction. Respecte num_ctx de l'utilisateur.
     Pre-tronque le texte si nécessaire avant envoi à Ollama.
     """
-    fitted_text, was_truncated = _fit_text_to_context(text, _COMPACT_INSTRUCTIONS, num_ctx)
-    prompt = fitted_text + _COMPACT_INSTRUCTIONS
+    instructions = _COMPACT_INSTRUCTIONS.replace("Keep the SAME language as the input (French→French, English→English).", language_instruction(lang))
+    fitted_text, was_truncated = _fit_text_to_context(text, instructions, num_ctx)
+    prompt = fitted_text + instructions
     
     prompt_tokens = _estimate_tokens(prompt)
     log_debug("Compression", f"[compact] Prompt: {len(prompt)} chars (~{prompt_tokens} tokens), num_ctx={num_ctx}")
@@ -135,13 +137,17 @@ async def run_compaction(text: str, ollama_service, url: str, model: str,
 
 
 async def run_summary(text: str, ollama_service, url: str, model: str,
-                      num_ctx: int = 4096) -> str:
+                      num_ctx: int = 4096, lang: str = "en") -> str:
     """
     AI-powered summary. Respecte num_ctx de l'utilisateur.
     Pre-tronque le texte si nécessaire avant envoi à Ollama.
     """
-    fitted_text, was_truncated = _fit_text_to_context(text, _SUMMARY_INSTRUCTIONS, num_ctx)
-    prompt = fitted_text + _SUMMARY_INSTRUCTIONS
+    instructions = _SUMMARY_INSTRUCTIONS.replace("Use the SAME LANGUAGE as the conversation.", language_instruction(lang))
+    if lang == "en":
+        for original, translated in [("SUJET:", "TOPIC:"), ("CONTEXTE:", "CONTEXT:"), ("FAITS:", "FACTS:"), ("RÉSOLU:", "RESOLVED:"), ("EN COURS:", "OPEN:")]:
+            instructions = instructions.replace(original, translated)
+    fitted_text, was_truncated = _fit_text_to_context(text, instructions, num_ctx)
+    prompt = fitted_text + instructions
     
     prompt_tokens = _estimate_tokens(prompt)
     log_debug("Compression", f"[summary] Prompt: {len(prompt)} chars (~{prompt_tokens} tokens), num_ctx={num_ctx}")

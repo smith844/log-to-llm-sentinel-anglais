@@ -1,3 +1,4 @@
+from app.utils.language import get_language, language_instruction
 import asyncio
 import json
 import os
@@ -461,7 +462,7 @@ class ResolutionService:
             if not config:
                 return {"resolved": False, "confidence": 0, "explanation": "Pas de configuration globale"}
 
-            lang = config.ollama_prompt_lang or "en"
+            lang = get_language(config)
             last_analysis = db.query(Analysis).filter(Analysis.rule_id == rule.id).order_by(Analysis.analyzed_at.desc()).first()
             error_details = last_analysis.triggered_line if last_analysis else "Inconnue"
             error_analysis = last_analysis.ollama_response if last_analysis else "Inconnue"
@@ -520,7 +521,7 @@ Retourne UNIQUEMENT l'objet JSON brut, sans formatage markdown ni bloc de code.
                 try:
                     response = await asyncio.wait_for(
                         self.orchestrator.ollama.analyze_async(
-                            prompt=prompt,
+                            prompt=prompt + "\n\n" + language_instruction(lang),
                             url=config.ollama_url,
                             model=config.ollama_model,
                             think=config.ollama_think,
@@ -668,7 +669,7 @@ Retourne UNIQUEMENT l'objet JSON brut, sans formatage markdown ni bloc de code.
             if not recent_logs:
                 return
 
-            lang = config.ollama_prompt_lang or "en"
+            lang = get_language(config)
             if lang == "en":
                 prompt = f"""You are an auto-learning assistant for log monitoring.
 A rule named '{rule.name}' just returned to normal.
@@ -696,7 +697,7 @@ Retourne UNIQUEMENT le tableau JSON brut, sans formatage markdown ni bloc de cod
                 try:
                     response = await asyncio.wait_for(
                         self.orchestrator.ollama.analyze_async(
-                            prompt=prompt,
+                            prompt=prompt + "\n\n" + language_instruction(lang),
                             url=config.ollama_url,
                             model=config.ollama_model,
                             think=False,
@@ -747,7 +748,7 @@ Retourne UNIQUEMENT le tableau JSON brut, sans formatage markdown ni bloc de cod
             if not config or not self.orchestrator:
                 return
 
-            lang = config.site_lang or "fr"
+            lang = get_language(config)
             instance_prefix = f"[{config.instance_name}] " if config.instance_name else ""
             notif_config = _get_notification_config(config)
 
@@ -906,7 +907,7 @@ Retourne UNIQUEMENT le tableau JSON brut, sans formatage markdown ni bloc de cod
                 if lines:
                     recent_logs = f"\nLogs recents (dernieres 30 lignes):\n" + "\n".join(lines[-30:])
 
-            lang = config.ollama_prompt_lang or "en"
+            lang = get_language(config)
             if lang == "en":
                 prompt = f"""You are auditing the resolution patterns of a log monitoring rule.
 Rule name: {rule.name}
@@ -956,7 +957,7 @@ Retourne UNIQUEMENT l'objet JSON brut, sans formatage markdown ni bloc de code.
                 try:
                     response = await asyncio.wait_for(
                         self.orchestrator.ollama.analyze_async(
-                            prompt=prompt,
+                            prompt=prompt + "\n\n" + language_instruction(lang),
                             url=config.ollama_url,
                             model=config.ollama_model,
                             think=False,
