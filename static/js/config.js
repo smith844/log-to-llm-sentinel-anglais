@@ -33,7 +33,7 @@ function setupLangSwitcher() {
     }
 
     // Initialize UI on load
-    const initialLang = hiddenSelect.value || 'fr';
+    const initialLang = hiddenSelect.value || 'en';
     updateUI(initialLang);
 
     // Initialise flags in dropdown using i18n helper
@@ -223,7 +223,7 @@ async function loadConfig() {
         document.getElementById('ollama-temp').value = config.ollama_temp || 0.1;
         document.getElementById('ollama-ctx').value = config.ollama_ctx || 4096;
         const promptLangEl = document.getElementById('ollama-prompt-lang');
-        if (promptLangEl) promptLangEl.value = config.ollama_prompt_lang || 'fr';
+        if (promptLangEl) promptLangEl.value = config.ollama_prompt_lang || 'en';
         window.__desiredAppriseTags = config.apprise_tags || '';
         const debugEl = document.getElementById('debug-mode');
         if (debugEl) {
@@ -697,7 +697,7 @@ async function saveConfig(messageEl, isAutoSave = false) {
         ollama_temp: parseFloat(document.getElementById('ollama-temp').value) || 0.1,
         ollama_ctx: parseInt(document.getElementById('ollama-ctx').value) || 4096,
         debug_mode: document.getElementById('debug-mode') ? document.getElementById('debug-mode').checked : false,
-        ollama_prompt_lang: (document.getElementById('ollama-prompt-lang') || {}).value || 'fr',
+        ollama_prompt_lang: (document.getElementById('ollama-prompt-lang') || {}).value || 'en',
         instance_name: document.getElementById('instance-name') ? document.getElementById('instance-name').value : '',
         auto_delete_analyses: document.getElementById('auto-delete-analyses') ? document.getElementById('auto-delete-analyses').checked : false,
         syslog_enabled: document.getElementById('syslog-enabled') ? document.getElementById('syslog-enabled').checked : false,

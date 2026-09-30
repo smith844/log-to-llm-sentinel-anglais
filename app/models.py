@@ -228,7 +228,7 @@ class GlobalConfig(Base):
     max_log_chars = Column(Integer, default=5000)
     monitor_log_lines = Column(Integer, default=60)
     debug_mode = Column(Boolean, default=False)
-    ollama_prompt_lang = Column(String, default='fr')  # 'fr' | 'en' — langue des prompts d'analyse
+    ollama_prompt_lang = Column(String, default='en')  # 'fr' | 'en' — langue des prompts d'analyse
     site_lang = Column(String, default='fr')  # langue du site (header) — utilisée pour les notifications
     instance_name = Column(String, default='')  # nom de l'instance pour différencier les notifications multi-déploiement
     chat_system_prompt = Column(Text, default="")

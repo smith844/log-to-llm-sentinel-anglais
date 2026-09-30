@@ -22,7 +22,7 @@ class GlobalConfigCreate(BaseModel):
     apprise_max_chars: int = 1900
     max_log_chars: int = 5000
     debug_mode: bool = False
-    ollama_prompt_lang: str = 'fr'  # 'fr' | 'en'
+    ollama_prompt_lang: str = 'en'  # 'fr' | 'en'
     discord_webhook_url: Optional[str] = None
     log_rotation_limit_mb: int = 10
 

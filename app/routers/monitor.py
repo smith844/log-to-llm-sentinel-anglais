@@ -339,7 +339,7 @@ async def retry_analysis(analysis_id: int):
             
         config = _get_config_dict(config_obj)
         cleaned_line = clean_log_line(analysis.triggered_line)
-        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""))
+        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=config.get("ollama_prompt_lang", "en"))
 
         # Capturer les IDs nécessaires pour la tâche en arrière-plan
         analysis_id_captured = analysis.id
@@ -436,11 +436,12 @@ async def analyze_line(data: dict):
             "ollama_temp":  cfg.ollama_temp  if cfg else 0.1,
             "ollama_ctx":   cfg.ollama_ctx   if cfg else 4096,
             "ollama_think": cfg.ollama_think if cfg else True,
-            "system_prompt": cfg.system_prompt if cfg else ""
+            "system_prompt": cfg.system_prompt if cfg else "",
+            "ollama_prompt_lang": (cfg.ollama_prompt_lang or "en") if cfg else "en"
         }
         rule_id_cap = rule.id
         cleaned_line = clean_log_line(line)
-        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""))
+        prompt = _orchestrator._build_prompt(rule, cleaned_line, config.get("system_prompt", ""), lang=config.get("ollama_prompt_lang", "en"))
     finally:
         db.close()
 
@@ -511,6 +512,8 @@ async def chat_analysis(data: dict, request: Request):
     db = SessionLocal()
     try:
         prompt = ""
+        cfg = db.query(GlobalConfig).first()
+        lang = (cfg.ollama_prompt_lang or "en") if cfg else "en"
         if analysis_id and str(analysis_id).isdigit():
             analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
             if not analysis:
@@ -520,11 +523,16 @@ async def chat_analysis(data: dict, request: Request):
             
             # Reconstruire le prompt original (ou le stocker en BDD ?)
             # Ici on va construire un prompt de chat
-            base_prompt = _orchestrator._build_prompt(rule, analysis.triggered_line, cfg.system_prompt if cfg else "")
-            prompt = f"{base_prompt}\n\nTa réponse précédente :\n{analysis.ollama_response}\n\nQuestion de l'utilisateur : {question}"
+            base_prompt = _orchestrator._build_prompt(rule, analysis.triggered_line, cfg.system_prompt if cfg else "", lang=(cfg.ollama_prompt_lang or "en") if cfg else "en")
+            previous_label = "Your previous response" if lang == "en" else "Ta réponse précédente"
+            question_label = "User question" if lang == "en" else "Question de l'utilisateur"
+            prompt = f"{base_prompt}\n\n{previous_label}:\n{analysis.ollama_response}\n\n{question_label}: {question}"
         else:
             # Mode manuel ou contextuel
-            prompt = f"Contexte de l'analyse :\n{context_prompt}\n\nRéponse précédente :\n{context_response}\n\nQuestion de l'utilisateur : {question}"
+            if lang == "en":
+                prompt = f"Analysis context:\n{context_prompt}\n\nPrevious response:\n{context_response}\n\nUser question: {question}\n\nRespond in English."
+            else:
+                prompt = f"Contexte de l'analyse :\n{context_prompt}\n\nRéponse précédente :\n{context_response}\n\nQuestion de l'utilisateur : {question}"
 
         cfg = db.query(GlobalConfig).first()
         if not cfg:
